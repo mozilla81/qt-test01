@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERP 雲端報價系統</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons (Vanilla JS) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- 頂部導航欄 -->
+  <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <i data-lucide="file-spreadsheet" class="w-7 h-7"></i>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">ERP 雲端報價管理系統</h1>
+          <span class="text-xs text-indigo-200">專案代號: QT TEST01 (GAS Driven)</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="btnTabNew" onclick="switchTab('new')" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/20 text-white hover:bg-white/30 transition flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> 新增報價單
+        </button>
+        <button id="btnTabHistory" onclick="switchTab('history')" class="px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-100 hover:bg-white/10 transition flex items-center gap-1.5">
+          <i data-lucide="history" class="w-4 h-4"></i> 歷史報價紀錄
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- 提示通知 Alert -->
+    <div id="alertBox" class="hidden mb-6 p-4 rounded-xl border flex items-center justify-between transition-all duration-300">
+      <div class="flex items-center space-x-3">
+        <span id="alertIcon"></span>
+        <span id="alertMessage" class="text-sm font-medium"></span>
+      </div>
+      <button onclick="hideAlert()" class="text-slate-400 hover:text-slate-600">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- 頁面 1: 新增報價單 -->
+    <section id="sectionNewQuote" class="space-y-6">
+      <form id="quoteForm" onsubmit="handleFormSubmit(event)">
+
+        <!-- 卡片 1: 報價基本資訊 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="info" class="w-5 h-5 text-indigo-600"></i> 基本資訊
+            </h2>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-slate-500">單號：</span>
+              <span id="displayQuoteNumber" class="text-sm font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
+                載入中...
+              </span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">報價單號</label>
+              <input type="text" id="quoteNumber" name="quotationNumber" required readonly
+                     class="w-full text-sm bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">報價日期 *</label>
+              <input type="date" id="quoteDate" name="quoteDate" required
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">有效截止日 *</label>
+              <input type="date" id="validUntil" name="validUntil" required
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">業務經辦 *</label>
+              <input type="text" id="salesPerson" name="salesPerson" placeholder="例：王小明" required
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- 卡片 2: 客戶資料 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="building-2" class="w-5 h-5 text-indigo-600"></i> 客戶資料
+            </h2>
+            <div class="w-72">
+              <select id="selectCustomer" onchange="onSelectCustomer(this.value)"
+                      class="w-full text-xs border border-indigo-200 bg-indigo-50/50 rounded-lg px-3 py-1.5 text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="">-- 快速帶入常用客戶 --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">客戶名稱 *</label>
+              <input type="text" id="customerName" name="customerName" placeholder="公司或行號全名" required
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">統一編號</label>
+              <input type="text" id="customerTaxId" name="customerTaxId" placeholder="8位數字" maxlength="8"
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">聯絡人 *</label>
+              <input type="text" id="contactPerson" name="contactPerson" placeholder="對接窗口姓名" required
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">聯絡電話</label>
+              <input type="text" id="customerPhone" name="customerPhone" placeholder="市話或手機"
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">電子信箱</label>
+              <input type="email" id="customerEmail" name="customerEmail" placeholder="service@example.com"
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">通訊地址</label>
+              <input type="text" id="customerAddress" name="customerAddress" placeholder="送貨或發票地址"
+                     class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- 卡片 3: 報價品項明細清單 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i> 報價品項明細
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">點擊品項右側快速按鈕可帶入預設產品，或手動自訂修改規格與金額</p>
+            </div>
+            <button type="button" onclick="addItemRow()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition flex items-center gap-1.5">
+              <i data-lucide="plus" class="w-4 h-4"></i> 新增一列
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 text-xs uppercase font-semibold">
+                  <th class="py-2.5 px-3 rounded-l-lg w-12 text-center">#</th>
+                  <th class="py-2.5 px-3 min-w-[200px]">品名 / 服務項目 *</th>
+                  <th class="py-2.5 px-3 min-w-[180px]">規格型號</th>
+                  <th class="py-2.5 px-2 w-20 text-right">數量 *</th>
+                  <th class="py-2.5 px-2 w-16 text-center">單位</th>
+                  <th class="py-2.5 px-2 w-28 text-right">單價 *</th>
+                  <th class="py-2.5 px-2 w-20 text-right">折扣(%)</th>
+                  <th class="py-2.5 px-3 w-32 text-right">小計</th>
+                  <th class="py-2.5 px-2 rounded-r-lg w-12 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTableBody" class="divide-y divide-slate-100">
+                <!-- 動態注入品項行 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 快速範本品項下拉 -->
+          <div class="pt-2 flex items-center gap-2 text-xs text-slate-500">
+            <span>常用產品快速加入：</span>
+            <select id="quickAddProduct" onchange="onQuickAddProduct(this.value)" class="border border-slate-200 rounded-md px-2 py-1 bg-slate-50 text-slate-700">
+              <option value="">-- 點此選擇加入品項 --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 卡片 4: 金額結算與條款 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- 左側：條款備註 -->
+          <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="file-text" class="w-5 h-5 text-indigo-600"></i> 付款條件與備註說明
+            </h2>
+            <textarea id="notes" name="notes" rows="5"
+                      class="w-full text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      placeholder="例：&#10;1. 付款條件：訂金 30%，驗收完成支付 70%。&#10;2. 報價有效期間：30天。&#10;3. 交期：簽約確認後 14 個工作天完成。"></textarea>
+          </div>
+
+          <!-- 右側：金額統計 -->
+          <div class="bg-indigo-900 text-white rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+            <h3 class="text-sm font-semibold tracking-wider text-indigo-200 uppercase">費用總計 (TWD)</h3>
+            
+            <div class="space-y-3 my-4">
+              <div class="flex justify-between text-sm text-indigo-200">
+                <span>未稅小計</span>
+                <span id="displaySubtotal" class="font-mono text-white text-base font-medium">$0</span>
+              </div>
+              <div class="flex justify-between text-sm text-indigo-200 items-center">
+                <span>營業稅 (5%)</span>
+                <span id="displayTax" class="font-mono text-white text-base font-medium">$0</span>
+              </div>
+              <div class="border-t border-indigo-700/60 pt-3 flex justify-between items-baseline">
+                <span class="text-base font-bold text-white">含稅總計</span>
+                <span id="displayTotal" class="font-mono text-2xl font-extrabold text-amber-300">$0</span>
+              </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="space-y-2 pt-2">
+              <button type="submit" id="btnSubmit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i> 儲存並開立報價單
+              </button>
+              <button type="button" onclick="resetForm()" class="w-full py-2 bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white text-xs font-semibold rounded-xl transition">
+                清空重填
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- 頁面 2: 歷史報價紀錄 -->
+    <section id="sectionHistory" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i> 近期報價單總覽
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">紀錄儲存於 Google 試算表後端，即時同步</p>
+          </div>
+          <button onclick="loadHistoryData()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> 重新整理
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-xs uppercase font-semibold">
+                <th class="py-2.5 px-3 rounded-l-lg">報價單號</th>
+                <th class="py-2.5 px-3">日期</th>
+                <th class="py-2.5 px-3">客戶名稱</th>
+                <th class="py-2.5 px-3">聯絡人</th>
+                <th class="py-2.5 px-3 text-right">含稅總計</th>
+                <th class="py-2.5 px-3">經辦業務</th>
+                <th class="py-2.5 px-3 text-center">狀態</th>
+                <th class="py-2.5 px-3 rounded-r-lg text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="8" class="text-center py-8 text-slate-400">點擊重新整理或切換分頁載入資料...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 報價單列印預覽 Modal -->
+  <div id="printModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6">
+      <div class="flex justify-between items-center border-b pb-4">
+        <h3 class="text-lg font-bold text-slate-800">報價單檢視 / 列印預覽</h3>
+        <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+      <div id="printContent" class="space-y-4">
+        <!-- 動態產生列印內容 -->
+      </div>
+      <div class="flex justify-end gap-3 pt-4 border-t">
+        <button onclick="closePrintModal()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">關閉</button>
+        <button onclick="window.print()" class="px-4 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5">
+          <i data-lucide="printer" class="w-4 h-4"></i> 列印報價單
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 系統狀態
+    let appState = {
+      customers: [],
+      products: [],
+      nextQuotationNumber: '',
+      items: []
+    };
+
+    // 頁面初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initApp();
+      setDefaultDates();
+      addItemRow(); // 預設新增一行
+    });
+
+    function setDefaultDates() {
+      const today = new Date();
+      const validDate = new Date();
+      validDate.setDate(today.getDate() + 30); // 預設 30 天有效
+
+      document.getElementById('quoteDate').value = today.toISOString().split('T')[0];
+      document.getElementById('validUntil').value = validDate.toISOString().split('T')[0];
+    }
+
+    function initApp() {
+      // 呼叫 GAS 後端取得初值
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              appState.customers = res.data.customers;
+              appState.products = res.data.products;
+              appState.nextQuotationNumber = res.data.nextQuotationNumber;
+              applyInitialData();
+            } else {
+              showAlert('載入後端資料失敗', 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            showAlert('GAS 連線失敗: ' + err, 'error');
+          })
+          .getInitialData();
+      } else {
+        // 本地預覽模擬資料
+        console.log('Running in local preview mode');
+        appState.nextQuotationNumber = 'QT-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-001';
+        appState.customers = [
+          { id: 'CUST001', name: '宏達數位科技有限公司', taxId: '12345678', contact: '陳經理', phone: '02-2345-6789', email: 'contact@example.com', address: '台北市中山區南京東路二段' },
+          { id: 'CUST002', name: '頂尖系統整合顧問', taxId: '87654321', contact: '林專案', phone: '04-8765-4321', email: 'sales@topconsult.com', address: '台中市西區台灣大道二段' }
+        ];
+        appState.products = [
+          { id: 'PROD001', name: 'ERP 系統模組授權', spec: '雲端標準版 (年租)', unit: '套', price: 36000 },
+          { id: 'PROD002', name: '系統客製化開發與串接', spec: '每工時報價', unit: '人/天', price: 16000 },
+          { id: 'PROD003', name: '企業教育訓練', spec: '半天實體培訓 (4小時)', unit: '場', price: 12000 }
+        ];
+        applyInitialData();
+      }
+    }
+
+    function applyInitialData() {
+      document.getElementById('quoteNumber').value = appState.nextQuotationNumber;
+      document.getElementById('displayQuoteNumber').innerText = appState.nextQuotationNumber;
+
+      // 填充客戶下拉選單
+      const selCust = document.getElementById('selectCustomer');
+      selCust.innerHTML = '<option value="">-- 快速帶入常用客戶 --</option>';
+      appState.customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = `${c.name} (${c.contact})`;
+        selCust.appendChild(opt);
+      });
+
+      // 填充快速產品選單
+      const selProd = document.getElementById('quickAddProduct');
+      selProd.innerHTML = '<option value="">-- 點此選擇加入品項 --</option>';
+      appState.products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.innerText = `[${p.unit}] ${p.name} - $${p.price.toLocaleString()}`;
+        selProd.appendChild(opt);
+      });
+    }
+
+    function onSelectCustomer(customerId) {
+      if (!customerId) return;
+      const c = appState.customers.find(item => item.id === customerId);
+      if (c) {
+        document.getElementById('customerName').value = c.name;
+        document.getElementById('customerTaxId').value = c.taxId || '';
+        document.getElementById('contactPerson').value = c.contact;
+        document.getElementById('customerPhone').value = c.phone || '';
+        document.getElementById('customerEmail').value = c.email || '';
+        document.getElementById('customerAddress').value = c.address || '';
+      }
+    }
+
+    function onQuickAddProduct(productId) {
+      if (!productId) return;
+      const p = appState.products.find(item => item.id === productId);
+      if (p) {
+        addItemRow({
+          name: p.name,
+          spec: p.spec,
+          qty: 1,
+          unit: p.unit,
+          price: p.price,
+          discount: 0
+        });
+        document.getElementById('quickAddProduct').value = '';
+      }
+    }
+
+    // 品項列管理
+    function addItemRow(defaultData) {
+      const tbody = document.getElementById('itemsTableBody');
+      const rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+      const d = defaultData || { name: '', spec: '', qty: 1, unit: '式', price: 0, discount: 0 };
+
+      const tr = document.createElement('tr');
+      tr.id = rowId;
+      tr.className = 'hover:bg-slate-50/70 transition';
+      tr.innerHTML = `
+        <td class="py-2.5 px-3 text-center text-xs font-mono text-slate-400 row-seq"></td>
+        <td class="py-2.5 px-3">
+          <input type="text" class="item-name w-full text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500" value="${d.name}" placeholder="產品或服務名稱" required>
+        </td>
+        <td class="py-2.5 px-3">
+          <input type="text" class="item-spec w-full text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500" value="${d.spec || ''}" placeholder="型號或說明">
+        </td>
+        <td class="py-2.5 px-2">
+          <input type="number" min="1" step="any" class="item-qty w-full text-right text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500" value="${d.qty}" oninput="calcTotals()" required>
+        </td>
+        <td class="py-2.5 px-2">
+          <input type="text" class="item-unit w-full text-center text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500" value="${d.unit}">
+        </td>
+        <td class="py-2.5 px-2">
+          <input type="number" min="0" step="any" class="item-price w-full text-right text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 font-mono" value="${d.price}" oninput="calcTotals()" required>
+        </td>
+        <td class="py-2.5 px-2">
+          <input type="number" min="0" max="100" class="item-discount w-full text-right text-sm border border-slate-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 font-mono" value="${d.discount}" oninput="calcTotals()">
+        </td>
+        <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-700 item-subtotal">
+          $0
+        </td>
+        <td class="py-2.5 px-2 text-center">
+          <button type="button" onclick="removeItemRow('${rowId}')" class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+      lucide.createIcons();
+      reindexRows();
+      calcTotals();
+    }
+
+    function removeItemRow(rowId) {
+      const row = document.getElementById(rowId);
+      if (row) {
+        row.remove();
+        reindexRows();
+        calcTotals();
+      }
+    }
+
+    function reindexRows() {
+      const rows = document.querySelectorAll('#itemsTableBody tr');
+      rows.forEach((r, idx) => {
+        const seqCell = r.querySelector('.row-seq');
+        if (seqCell) seqCell.innerText = idx + 1;
+      });
+    }
+
+    function calcTotals() {
+      let subtotal = 0;
+      const rows = document.querySelectorAll('#itemsTableBody tr');
+
+      rows.forEach(r => {
+        const qty = parseFloat(r.querySelector('.item-qty')?.value) || 0;
+        const price = parseFloat(r.querySelector('.item-price')?.value) || 0;
+        const discount = parseFloat(r.querySelector('.item-discount')?.value) || 0;
+
+        let lineTotal = qty * price;
+        if (discount > 0 && discount < 100) {
+          lineTotal = lineTotal * (1 - (discount / 100));
+        }
+
+        lineTotal = Math.round(lineTotal);
+        subtotal += lineTotal;
+
+        const subtotalCell = r.querySelector('.item-subtotal');
+        if (subtotalCell) {
+          subtotalCell.innerText = '$' + lineTotal.toLocaleString();
+        }
+      });
+
+      const tax = Math.round(subtotal * 0.05);
+      const total = subtotal + tax;
+
+      document.getElementById('displaySubtotal').innerText = '$' + subtotal.toLocaleString();
+      document.getElementById('displayTax').innerText = '$' + tax.toLocaleString();
+      document.getElementById('displayTotal').innerText = '$' + total.toLocaleString();
+
+      return { subtotal, tax, total };
+    }
+
+    // 表單提交處理
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const rows = document.querySelectorAll('#itemsTableBody tr');
+      if (rows.length === 0) {
+        showAlert('請至少新增一個報價品項！', 'error');
+        return;
+      }
+
+      const items = [];
+      rows.forEach(r => {
+        const qty = parseFloat(r.querySelector('.item-qty').value) || 0;
+        const price = parseFloat(r.querySelector('.item-price').value) || 0;
+        const discount = parseFloat(r.querySelector('.item-discount').value) || 0;
+        let lineTotal = Math.round(qty * price * (1 - (discount / 100)));
+
+        items.push({
+          name: r.querySelector('.item-name').value,
+          spec: r.querySelector('.item-spec').value,
+          qty: qty,
+          unit: r.querySelector('.item-unit').value,
+          price: price,
+          discount: discount,
+          subtotal: lineTotal
+        });
+      });
+
+      const totals = calcTotals();
+      const payload = {
+        quotationNumber: document.getElementById('quoteNumber').value,
+        quoteDate: document.getElementById('quoteDate').value,
+        validUntil: document.getElementById('validUntil').value,
+        salesPerson: document.getElementById('salesPerson').value,
+        customerId: document.getElementById('selectCustomer').value,
+        customerName: document.getElementById('customerName').value,
+        contactPerson: document.getElementById('contactPerson').value,
+        customerTaxId: document.getElementById('customerTaxId').value,
+        customerPhone: document.getElementById('customerPhone').value,
+        customerEmail: document.getElementById('customerEmail').value,
+        customerAddress: document.getElementById('customerAddress').value,
+        notes: document.getElementById('notes').value,
+        currency: 'TWD',
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        total: totals.total,
+        items: items
+      };
+
+      const btnSubmit = document.getElementById('btnSubmit');
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> 儲存中...`;
+      lucide.createIcons();
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5"></i> 儲存並開立報價單`;
+            lucide.createIcons();
+            if (res.success) {
+              showAlert(res.message + ' 單號: ' + res.quotationNumber, 'success');
+              // 重新載入初始狀態 (取得新單號)
+              initApp();
+              resetForm();
+            } else {
+              showAlert('儲存失敗: ' + res.error, 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5"></i> 儲存並開立報價單`;
+            lucide.createIcons();
+            showAlert('GAS 連線儲存發生錯誤: ' + err, 'error');
+          })
+          .submitQuotation(payload);
+      } else {
+        setTimeout(() => {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5"></i> 儲存並開立報價單`;
+          lucide.createIcons();
+          showAlert('【本地預覽模式】報價單模擬開立成功！單號: ' + payload.quotationNumber, 'success');
+        }, 1000);
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('quoteForm').reset();
+      document.getElementById('itemsTableBody').innerHTML = '';
+      setDefaultDates();
+      addItemRow();
+      calcTotals();
+      if (appState.nextQuotationNumber) {
+        document.getElementById('quoteNumber').value = appState.nextQuotationNumber;
+        document.getElementById('displayQuoteNumber').innerText = appState.nextQuotationNumber;
+      }
+    }
+
+    // 分頁切換
+    function switchTab(tab) {
+      const secNew = document.getElementById('sectionNewQuote');
+      const secHis = document.getElementById('sectionHistory');
+      const btnNew = document.getElementById('btnTabNew');
+      const btnHis = document.getElementById('btnTabHistory');
+
+      if (tab === 'new') {
+        secNew.classList.remove('hidden');
+        secHis.classList.add('hidden');
+        btnNew.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-white/20 text-white hover:bg-white/30 transition flex items-center gap-1.5';
+        btnHis.className = 'px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-100 hover:bg-white/10 transition flex items-center gap-1.5';
+      } else {
+        secNew.classList.add('hidden');
+        secHis.classList.remove('hidden');
+        btnHis.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-white/20 text-white hover:bg-white/30 transition flex items-center gap-1.5';
+        btnNew.className = 'px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-100 hover:bg-white/10 transition flex items-center gap-1.5';
+        loadHistoryData();
+      }
+    }
+
+    function loadHistoryData() {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">載入中...</td></tr>`;
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => {
+            renderHistoryRows(res.list || []);
+          })
+          .withFailureHandler(err => {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-500">載入失敗: ${err}</td></tr>`;
+          })
+          .getRecentQuotations(20);
+      } else {
+        // 模擬數據
+        const mockList = [
+          { quotationNumber: 'QT-20261118-001', date: '2026-11-18', customerName: '宏達數位科技', contactPerson: '陳經理', total: 54600, salesPerson: '王小明', status: '草稿' }
+        ];
+        renderHistoryRows(mockList);
+      }
+    }
+
+    function renderHistoryRows(list) {
+      const tbody = document.getElementById('historyTableBody');
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">目前尚無歷史報價單紀錄</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(q => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-3 font-mono font-bold text-indigo-700">${q.quotationNumber}</td>
+          <td class="py-3 px-3 text-slate-600">${q.date}</td>
+          <td class="py-3 px-3 font-medium text-slate-800">${q.customerName}</td>
+          <td class="py-3 px-3 text-slate-600">${q.contactPerson}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-slate-800">$${Number(q.total).toLocaleString()}</td>
+          <td class="py-3 px-3 text-slate-600">${q.salesPerson || '-'}</td>
+          <td class="py-3 px-3 text-center">
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">${q.status || '草稿'}</span>
+          </td>
+          <td class="py-3 px-3 text-center">
+            <button onclick="previewQuote('${q.quotationNumber}')" class="px-2.5 py-1 text-xs rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium transition">
+              檢視
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function previewQuote(id) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              showModalDetail(res.master, res.items);
+            } else {
+              showAlert(res.error, 'error');
+            }
+          })
+          .getQuotationDetail(id);
+      } else {
+        showAlert('預覽單號: ' + id, 'info');
+      }
+    }
+
+    function showModalDetail(m, items) {
+      const content = document.getElementById('printContent');
+      content.innerHTML = `
+        <div class="border-b pb-4 flex justify-between items-start">
+          <div>
+            <h2 class="text-xl font-black text-slate-900 tracking-wider">正式商業報價單</h2>
+            <p class="text-xs text-slate-500">QUOTATION</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-mono font-bold text-indigo-700">${m.quotationNumber}</p>
+            <p class="text-xs text-slate-500">報價日期: ${m.quoteDate}</p>
+            <p class="text-xs text-slate-500">有效日期: ${m.validUntil}</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div>
+            <p class="text-slate-400 font-semibold uppercase">買方客戶</p>
+            <p class="text-sm font-bold text-slate-800 mt-0.5">${m.customerName}</p>
+            <p class="text-slate-600">聯絡人: ${m.contactPerson}</p>
+          </div>
+          <div>
+            <p class="text-slate-400 font-semibold uppercase">經辦資訊</p>
+            <p class="text-sm font-bold text-slate-800 mt-0.5">業務: ${m.salesPerson}</p>
+            <p class="text-slate-600">幣別: ${m.currency}</p>
+          </div>
+        </div>
+
+        <table class="w-full text-xs text-left">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2">#</th>
+              <th>項目</th>
+              <th>規格</th>
+              <th class="text-right">數量</th>
+              <th class="text-right">單價</th>
+              <th class="text-right">小計</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${items.map(it => `
+              <tr>
+                <td class="py-2 font-mono text-slate-400">${it.seq}</td>
+                <td class="font-medium text-slate-800">${it.name}</td>
+                <td class="text-slate-500">${it.spec || '-'}</td>
+                <td class="text-right">${it.qty} ${it.unit}</td>
+                <td class="text-right font-mono">$${Number(it.price).toLocaleString()}</td>
+                <td class="text-right font-mono font-bold">$${Number(it.subtotal).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="flex justify-end pt-2 border-t">
+          <div class="w-48 space-y-1 text-xs">
+            <div class="flex justify-between text-slate-500"><span>未稅金額:</span><span>$${Number(m.subtotal).toLocaleString()}</span></div>
+            <div class="flex justify-between text-slate-500"><span>營業稅(5%):</span><span>$${Number(m.tax).toLocaleString()}</span></div>
+            <div class="flex justify-between font-bold text-sm text-indigo-700 pt-1 border-t"><span>含稅總額:</span><span>$${Number(m.total).toLocaleString()}</span></div>
+          </div>
+        </div>
+      `;
+      document.getElementById('printModal').classList.remove('hidden');
+    }
+
+    function closePrintModal() {
+      document.getElementById('printModal').classList.add('hidden');
+    }
+
+    function showAlert(msg, type) {
+      const box = document.getElementById('alertBox');
+      const icon = document.getElementById('alertIcon');
+      const text = document.getElementById('alertMessage');
+
+      text.innerText = msg;
+      box.className = 'mb-6 p-4 rounded-xl border flex items-center justify-between transition-all duration-300 ';
+
+      if (type === 'success') {
+        box.className += 'bg-emerald-50 border-emerald-200 text-emerald-800';
+        icon.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>`;
+      } else if (type === 'error') {
+        box.className += 'bg-rose-50 border-rose-200 text-rose-800';
+        icon.innerHTML = `<i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>`;
+      } else {
+        box.className += 'bg-indigo-50 border-indigo-200 text-indigo-800';
+        icon.innerHTML = `<i data-lucide="info" class="w-5 h-5 text-indigo-600"></i>`;
+      }
+
+      box.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBox').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
