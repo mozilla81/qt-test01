@@ -14,8 +14,26 @@ const SHEET_NAMES = {
 
 /**
  * 網頁進入點 (GET)
+ * 支援：
+ * 1. 網頁 UI 渲染
+ * 2. API 請求 (供 Cloudflare Pages / 外部前端 fetch)
  */
 function doGet(e) {
+  // 支援外部 API 呼叫 (REST API)
+  if (e && e.parameter && e.parameter.action) {
+    let result = { success: false, error: '未知操作' };
+    if (e.parameter.action === 'getInitialData') {
+      result = getInitialData();
+    } else if (e.parameter.action === 'getRecentQuotations') {
+      const limit = parseInt(e.parameter.limit || '15', 10);
+      result = getRecentQuotations(limit);
+    } else if (e.parameter.action === 'getQuotationDetail') {
+      result = getQuotationDetail(e.parameter.id);
+    }
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // 如果網址帶有 print 參數，提供專門列印頁面
   if (e && e.parameter && e.parameter.print) {
     const template = HtmlService.createTemplateFromFile('print');
@@ -30,6 +48,34 @@ function doGet(e) {
     .setTitle('ERP 報價系統 - QT TEST01')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * API 寫入端點 (POST)
+ * 供 Cloudflare Pages / 外部表單跨域提交
+ */
+function doPost(e) {
+  try {
+    let payload;
+    if (e.postData && e.postData.contents) {
+      payload = JSON.parse(e.postData.contents);
+    } else if (e.parameter) {
+      payload = e.parameter;
+    }
+
+    let result = { success: false, error: '無效資料' };
+    if (payload) {
+      result = submitQuotation(payload);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 /**
